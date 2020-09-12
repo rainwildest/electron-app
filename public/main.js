@@ -48,8 +48,49 @@ app.on('activate', () => {
   }
 })
 
-const filesStorage = []
-ipcMain.on('toggle-image', (e, arg) => {
+// 記錄被選擇文件夾中的文件列表
+let filesStorage = []
+// 文件夾路徑中文件所在的父文件夾
+let lastDirName = ''
+// 記錄被選擇的文件夾路徑
+let dirPath = ''
+
+// 清空 filesStorage、lastDirName、dirPath
+const clearFilesStorage = () => {
+  filesStorage = []
+  lastDirName = ''
+  dirPath = ''
+}
+
+// 開始轉換
+ipcMain.on('start', (e, arg) => {
+  // 開始轉換
+  const fs = require('fs')
+  e.sender.send('rename-start')
+  let filename = ''
+
+  for (let i = 0; i < filesStorage.length; i++) {
+    filename = filesStorage[i].data
+    try {
+      fs.renameSync(`${dirPath}/${filename}`, `${dirPath}/${lastDirName}-${filename}`)
+    } catch (error) {
+      console.log(error)
+      break
+    }
+  }
+
+  // 結束轉換
+  e.sender.send('rename-end')
+  clearFilesStorage()
+})
+
+// 清空內容
+ipcMain.on('clear-rename-data', (e, arg) => {
+  clearFilesStorage()
+  e.sender.send('rename-data', [])
+})
+
+ipcMain.on('open-select-dir', (e, arg) => {
   dialog.showOpenDialog(mainWindow, {
     properties: ['openFile', 'openDirectory']
   }).then(result => {
@@ -58,11 +99,11 @@ ipcMain.on('toggle-image', (e, arg) => {
     const paths = result.filePaths
     if (paths.length) {
       const fs = require('fs')
-      const path = paths[0]
+      dirPath = paths[0]
 
-      const lastDirName = path.substr(path.lastIndexOf('\\') + 1)
+      lastDirName = dirPath.substr(dirPath.lastIndexOf('\\') + 1)
       // 讀取目錄下的文件
-      const files = fs.readdirSync(path)
+      const files = fs.readdirSync(dirPath)
       files.forEach(value => {
         filesStorage.push({
           data: value,
@@ -70,17 +111,12 @@ ipcMain.on('toggle-image', (e, arg) => {
         })
       })
 
-      // for (let i = 0; i < files.length; i++) {
-      //   try {
-      //     fs.renameSync(`${path}/${files[i]}`, `${path}/${lastDirName}-${files[i]}`)
-      //   } catch (error) {
-      //     console.log(error)
-      //   }
-      // }
-      e.sender.send('render-data', filesStorage)
+      // 發送資料到前端
+      e.sender.send('rename-data', filesStorage)
     }
     // 讀取目錄下的文件
   }).catch(err => {
     console.log(err)
+    // 後面應該會有一個報錯的提示
   })
 })
