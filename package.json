@@ -1,7 +1,8 @@
 {
   "name": "displya",
   "version": "0.1.0",
-  "main": "public/main.js",
+  "main": "main.js",
+  "homepage": ".",
   "dependencies": {
     "@chakra-ui/core": "^0.8.0",
     "@emotion/core": "^10.0.35",
@@ -15,6 +16,7 @@
     "electron": "^10.1.0",
     "electron-builder": "^22.8.0",
     "electron-is-dev": "^1.2.0",
+    "electron-packager": "^15.1.0",
     "emotion-theming": "^10.0.27",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
@@ -30,7 +32,8 @@
     "electron-build": "electron-builder",
     "electron-start": "electron .",
     "build": "npm run react-build && npm run electron-builder",
-    "dev": "concurrently \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && electron .\""
+    "dev": "concurrently \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && electron .\"",
+    "packager": "electron-packager . HelloWorld --platform=win32 --arch=x64 --icon=./public/rename.ico --out=./out --asar --app-version=0.0.1 --overwrite --ignore=node_modules"
   },
   "eslintConfig": {
     "extends": "react-app"

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron')
+const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
 
@@ -6,24 +6,28 @@ let mainWindow
 const createWindow = () => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 350,
+    height: 500,
+    resizable: false,
     webPreferences: {
       nodeIntegration: true
     }
   })
 
   // and load the index.html of the app.
-  // mainWindow.loadFile('index.html')
   mainWindow.loadURL(
     isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, '/build/index.html')}`
   )
+  // mainWindow.loadURL(`file://${path.join(__dirname, './build/index.html')}`)
 
   // closed clear mainWindow
   mainWindow.on('closed', () => (mainWindow = null))
 
   // Open the DevTools.
   mainWindow.webContents.openDevTools()
+
+  // 清掉 menu
+  Menu.setApplicationMenu(null)
 }
 
 // This method will be called when Electron has finished
@@ -70,12 +74,25 @@ ipcMain.on('start', (e, arg) => {
   let filename = ''
 
   for (let i = 0; i < filesStorage.length; i++) {
-    filename = filesStorage[i].data
-    try {
-      fs.renameSync(`${dirPath}/${filename}`, `${dirPath}/${lastDirName}-${filename}`)
-    } catch (error) {
-      console.log(error)
-      break
+    filename = filesStorage[i]
+    let rename = false
+
+    if (filename.indexOf('-') > 0) {
+      const name = (filename.split('-'))[0]
+      rename = name !== lastDirName
+    } else {
+      rename = true
+    }
+
+    if (rename) {
+      try {
+        fs.renameSync(`${dirPath}/${filename}`, `${dirPath}/${lastDirName}-${filename}`)
+      } catch (error) {
+        console.log(error)
+        break
+      }
+    } else {
+
     }
   }
 
@@ -87,7 +104,7 @@ ipcMain.on('start', (e, arg) => {
 // 清空內容
 ipcMain.on('clear-rename-data', (e, arg) => {
   clearFilesStorage()
-  e.sender.send('rename-data', [])
+  e.sender.send('rename-data', { total: 0 })
 })
 
 ipcMain.on('open-select-dir', (e, arg) => {
@@ -104,15 +121,10 @@ ipcMain.on('open-select-dir', (e, arg) => {
       lastDirName = dirPath.substr(dirPath.lastIndexOf('\\') + 1)
       // 讀取目錄下的文件
       const files = fs.readdirSync(dirPath)
-      files.forEach(value => {
-        filesStorage.push({
-          data: value,
-          state: 'wait'
-        })
-      })
+      filesStorage = [...files]
 
       // 發送資料到前端
-      e.sender.send('rename-data', filesStorage)
+      e.sender.send('rename-data', { total: files.length })
     }
     // 讀取目錄下的文件
   }).catch(err => {
