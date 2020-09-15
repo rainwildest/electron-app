@@ -33,7 +33,7 @@
     "electron-start": "electron .",
     "build": "npm run react-build && npm run electron-builder",
     "dev": "concurrently \"cross-env BROWSER=none npm run react-start\" \"wait-on http://localhost:3000 && electron .\"",
-    "packager": "electron-packager . HelloWorld --platform=win32 --arch=x64 --icon=./public/rename.ico --out=./out --asar --app-version=0.0.1 --overwrite --ignore=node_modules"
+    "packager": "electron-packager . Rename --platform=win32 --arch=x64 --icon=./public/favi-icon.ico --out=./out --asar --app-version=1.0.0 --overwrite --ignore=node_modules"
   },
   "eslintConfig": {
     "extends": "react-app"

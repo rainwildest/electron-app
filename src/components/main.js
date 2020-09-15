@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Box, Flex } from '@chakra-ui/core'
+import { Button, Box, Flex, Tooltip } from '@chakra-ui/core'
 const { ipcRenderer } = window.require('electron')
 
 const Main = () => {
-  // const [isRenamed, setIsReanmed] = useState(false)
-  const [filesData, setFilesData] = useState({ total: 0 })
+  const [filesData, setFilesData] = useState({ total: 0, state: 'ready' })
   const [calc, setCalc] = useState(0)
   const [ready, setReady] = useState(false)
   const [isStartRename, setIsStartRename] = useState(false)
@@ -16,6 +15,7 @@ const Main = () => {
       setIsStartRename(false)
       setReady(false)
       setCalc(calc + 1)
+      setFilesData(data)
     })
 
     ipcRenderer.on('rename-start', (e, data) => {
@@ -28,18 +28,37 @@ const Main = () => {
         setReady(true)
       }
     })
-
-    ipcRenderer.on('rename-complete', (e, data) => {
-      // console.log(data)
-      // setFilesData({
-      //   ...filesData,
-      //   ...data
-      // })
-    })
   }, [])
 
   return (
-    <Flex position='absolute' top='0px' bottom='0px' left='0' right='0'>
+    <Flex
+      position='absolute'
+      top='0px'
+      bottom='0px'
+      left='0'
+      right='0'
+      flexDirection='column'
+    >
+      {
+        filesData.path && (
+          <Tooltip label={filesData.path}>
+            <Flex px={4} py={2} fontSize='14px' cursor='default'>
+              <Box flexShrink='0'>路徑：</Box>
+
+              <Box
+                whiteSpace='nowrap'
+                textOverflow='ellipsis'
+                overflow='hidden'
+                wordBreak='break-all'
+              >
+
+                {filesData.path}
+              </Box>
+            </Flex>
+          </Tooltip>
+        )
+      }
+
       <Flex flex='1' justifyContent='center' alignItems='center'>
         <Flex alignItems='center' flexDirection='column'>
           {!!ready && (
@@ -101,7 +120,30 @@ const Main = () => {
               )
             }
           </Box>
-          <Box>總數：{filesData.total}</Box>
+          {
+            filesData.state === 'ready' && (
+              <Box>總數：{filesData.total}</Box>
+            )
+          }
+
+          {
+            filesData.state === 'end' && (
+              <Box>
+                <Flex>
+                  <Box w='90px' flexShrink='0' textAlign='right'>完成改名：</Box>
+                  {filesData.total}
+                </Flex>
+                <Flex>
+                  <Box w='90px' flexShrink='0' textAlign='right'>忽略改名：</Box>
+                  {filesData.ignore}
+                </Flex>
+                <Flex>
+                  <Box w='90px' flexShrink='0' textAlign='right'>改名失敗：</Box>
+                  {filesData.error}
+                </Flex>
+              </Box>
+            )
+          }
         </Flex>
       </Flex>
     </Flex>
