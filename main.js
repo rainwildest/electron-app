@@ -1,6 +1,6 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu } = require('electron')
 const path = require('path')
-const isDev = require('electron-is-dev')
+// const isDev = require('electron-is-dev')
 
 let mainWindow
 const createWindow = () => {
@@ -15,16 +15,16 @@ const createWindow = () => {
   })
 
   // and load the index.html of the app.
-  mainWindow.loadURL(
-    isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, '/build/index.html')}`
-  )
-  // mainWindow.loadURL(`file://${path.join(__dirname, './build/index.html')}`)
+  // mainWindow.loadURL(
+  //   isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, '/build/index.html')}`
+  // )
+  mainWindow.loadURL(`file://${path.join(__dirname, './build/index.html')}`)
 
   // closed clear mainWindow
   mainWindow.on('closed', () => (mainWindow = null))
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools()
+  // mainWindow.webContents.openDevTools()
 
   // 清掉 menu
   Menu.setApplicationMenu(null)
@@ -73,38 +73,71 @@ ipcMain.on('start', (e, arg) => {
   e.sender.send('rename-start')
   let filename = ''
 
+  let successTotal = 0
+  let ignoreTotal = 0
+  let errorTotal = 0
+
   for (let i = 0; i < filesStorage.length; i++) {
     filename = filesStorage[i]
-    let rename = false
+    let isRenamed = false
 
+    // 檢測是否有已經有轉換過名字的
     if (filename.indexOf('-') > 0) {
       const name = (filename.split('-'))[0]
-      rename = name !== lastDirName
+      isRenamed = name !== lastDirName
     } else {
-      rename = true
+      isRenamed = true
     }
 
-    if (rename) {
-      try {
-        fs.renameSync(`${dirPath}/${filename}`, `${dirPath}/${lastDirName}-${filename}`)
-      } catch (error) {
-        console.log(error)
-        break
+    // 如果已經改過文件名了，則忽略
+    if (isRenamed) {
+      // 檢測這個文件是否還存在，防止有人突然之間就刪了
+      if (!fs.existsSync(`${dirPath}/${filename}`)) {
+        ++errorTotal
+      } else {
+        try {
+          // 如果有相同的名字就加個"副本"，防止有人在更改了一次又把未
+          const isExistsName = filesStorage.includes(`${lastDirName}-${filename}`)
+          let changeFilename = ''
+          if (isExistsName) {
+            const pointPosition = filename.lastIndexOf('.')
+            const suffix = filename.substr(pointPosition)
+            const name = filename.substr(0, pointPosition)
+            changeFilename = `${lastDirName}-${name}-副本${suffix}`
+          } else {
+            changeFilename = `${lastDirName}-${filename}`
+          }
+
+          // 執行更換名字
+          fs.renameSync(`${dirPath}/${filename}`, `${dirPath}/${changeFilename}`)
+          ++successTotal
+        } catch (error) {
+          dialog.showErrorBox('改名錯誤', '改名錯誤請重新再試。')
+          break
+        }
       }
     } else {
-
+      !fs.existsSync(`${dirPath}/${filename}`) ? ++errorTotal : ++ignoreTotal
     }
   }
 
   // 結束轉換
-  e.sender.send('rename-end')
+  e.sender.send('rename-end', {
+    total: successTotal,
+    ignore: ignoreTotal,
+    error: errorTotal,
+    path: dirPath,
+    state: 'end'
+  })
+
+  // 完成轉換，就清空相應的數據
   clearFilesStorage()
 })
 
 // 清空內容
 ipcMain.on('clear-rename-data', (e, arg) => {
   clearFilesStorage()
-  e.sender.send('rename-data', { total: 0 })
+  e.sender.send('rename-data', { total: 0, state: 'ready' })
 })
 
 ipcMain.on('open-select-dir', (e, arg) => {
@@ -124,11 +157,16 @@ ipcMain.on('open-select-dir', (e, arg) => {
       filesStorage = [...files]
 
       // 發送資料到前端
-      e.sender.send('rename-data', { total: files.length })
+      e.sender.send('rename-data', {
+        total: files.length,
+        path: dirPath,
+        state: 'ready'
+      })
     }
     // 讀取目錄下的文件
-  }).catch(err => {
-    console.log(err)
+  }).catch(() => {
+    // console.log(err)
+    dialog.showErrorBox('打開文件夾錯誤', '請檢查該文件夾路徑是否存在。')
     // 後面應該會有一個報錯的提示
   })
 })
